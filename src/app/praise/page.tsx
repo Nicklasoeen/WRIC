@@ -3,6 +3,8 @@ import { getSession } from "@/app/actions/auth";
 import { PraiseButton } from "@/components/praise/PraiseButton";
 import { TopPraisers } from "@/components/praise/TopPraisers";
 
+export const dynamic = 'force-dynamic';
+
 export default async function PraisePage() {
   const session = await getSession();
 
@@ -27,7 +29,7 @@ export default async function PraisePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Venstre side - Bilde og Praise-knapp */}
           <div className="lg:col-span-2">
-            <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-10">
+            <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-10 shadow-lg">
               {/* Bilde */}
               <div className="mb-6 flex justify-center">
                 <div className="relative h-[500px] w-[500px] overflow-hidden rounded-lg border-4 border-yellow-500 shadow-lg">
@@ -60,7 +62,7 @@ export default async function PraisePage() {
 
           {/* Høyre side - Top Praisers */}
           <div className="lg:col-span-1">
-            <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-6 sticky top-24">
+            <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-6 sticky top-24 shadow-lg">
               <div className="mb-4">
                 <h2 className="text-xl font-semibold text-white mb-2">
                   Top Praisers of the Month

@@ -6,6 +6,13 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { useTransition } from "react";
 import Link from "next/link";
+import { BadgeIcon } from "@/components/badges/BadgeIcon";
+
+interface UserBadge {
+  icon: string;
+  color: string;
+  name: string;
+}
 
 export function ChatWidgetCompact() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -15,6 +22,7 @@ export function ChatWidgetCompact() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
+  const [userBadges, setUserBadges] = useState<Record<string, UserBadge>>({});
 
   useEffect(() => {
     loadMessages();
@@ -35,6 +43,30 @@ export function ChatWidgetCompact() {
     }
   }, [messages]);
 
+  // Oppdater badges når meldinger endres (i tilfelle noen har fått ny badge)
+  useEffect(() => {
+    if (messages.length > 0) {
+      const userIds = [...new Set(messages.map((msg) => msg.userId))];
+      if (userIds.length > 0) {
+        loadUserBadges(userIds).catch(() => {});
+      }
+    }
+  }, [messages]);
+
+  // Oppdater badges periodisk (hvert 10. sekund) for å fange opp nye badges
+  useEffect(() => {
+    if (messages.length === 0) return;
+    
+    const userIds = [...new Set(messages.map((msg) => msg.userId))];
+    if (userIds.length === 0) return;
+
+    const badgeInterval = setInterval(() => {
+      loadUserBadges(userIds).catch(() => {});
+    }, 10000); // Oppdater badges hvert 10. sekund
+    
+    return () => clearInterval(badgeInterval);
+  }, [messages]);
+
   async function loadMessages() {
     try {
       const response = await fetch("/api/chat?limit=5");
@@ -48,7 +80,14 @@ export function ChatWidgetCompact() {
           shouldAutoScroll.current = isNearBottom;
         }
         
-        setMessages(result.data);
+        const messages = result.data as ChatMessage[];
+        setMessages(messages);
+
+        // Hent badges for alle brukere i meldingene
+        const userIds: string[] = [...new Set(messages.map((msg) => msg.userId))];
+        if (userIds.length > 0) {
+          loadUserBadges(userIds);
+        }
       }
     } catch (err) {
       console.error("Error loading messages:", err);
@@ -56,6 +95,37 @@ export function ChatWidgetCompact() {
       setLoading(false);
     }
   }
+
+  async function loadUserBadges(userIds: string[]) {
+    try {
+      // Legg til cache-busting for å sikre at vi får oppdaterte badges
+      const response = await fetch(`/api/chat-users?userIds=${userIds.join(",")}&_t=${Date.now()}`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        setUserBadges(result.data);
+      }
+    } catch (err) {
+      console.error("Error loading user badges:", err);
+    }
+  }
+
+  const getBadgeColorClass = (color: string) => {
+    const colorMap: Record<string, string> = {
+      brown: "text-amber-800",
+      orange: "text-orange-500",
+      red: "text-red-500",
+      pink: "text-pink-500",
+      blue: "text-blue-500",
+      purple: "text-purple-500",
+      gold: "text-yellow-400",
+      // Fallback for gamle farger
+      gray: "text-slate-300",
+      yellow: "text-yellow-400",
+      silver: "text-slate-200",
+      green: "text-green-400",
+    };
+    return colorMap[color] || "text-slate-300";
+  };
 
   const handleScroll = () => {
     if (messagesContainerRef.current) {
@@ -122,12 +192,25 @@ export function ChatWidgetCompact() {
           messages.map((msg) => (
             <div
               key={msg.id}
-              className="rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-2"
+              className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-2"
             >
               <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-medium text-slate-900 dark:text-slate-100 text-xs">
+                    {userBadges[msg.userId] && (
+                      <BadgeIcon
+                        icon={userBadges[msg.userId].icon}
+                        className={getBadgeColorClass(userBadges[msg.userId].color)}
+                        size={14}
+                      />
+                    )}
+                    <span
+                      className={`font-medium text-xs ${
+                        userBadges[msg.userId]
+                          ? getBadgeColorClass(userBadges[msg.userId].color)
+                          : "text-slate-900 dark:text-slate-100"
+                      }`}
+                    >
                       {msg.userName}
                     </span>
                     <span className="text-[10px] text-slate-400">

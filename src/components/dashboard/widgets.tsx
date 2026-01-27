@@ -28,7 +28,7 @@ export function WidgetCard({
 }: WidgetCardProps) {
   return (
     <section
-      className={`relative flex flex-col gap-3 rounded-3xl border border-slate-100 bg-white/80 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)] backdrop-blur-sm dark:border-slate-800/70 dark:bg-slate-900/80 ${sizeClasses[size]} ${className}`}
+      className={`relative flex flex-col gap-3 rounded-xl border border-slate-700/80 bg-slate-800/60 p-5 shadow-lg backdrop-blur-sm ${sizeClasses[size]} ${className}`}
     >
       <header className="flex items-center justify-between gap-2">
         <div>

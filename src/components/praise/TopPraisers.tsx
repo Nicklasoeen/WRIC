@@ -49,7 +49,7 @@ export function TopPraisers() {
       {topPraisers.map((praiser, index) => (
         <div
           key={praiser.userId}
-          className="flex items-center justify-between rounded-lg bg-slate-700/50 border border-slate-600 p-4"
+          className="flex items-center justify-between rounded-xl bg-slate-800/60 border border-slate-700/80 p-4 shadow-lg"
         >
           <div className="flex items-center gap-4">
             {/* Plassering */}

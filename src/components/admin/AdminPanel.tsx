@@ -95,7 +95,7 @@ export function AdminPanel({ initialUsers }: AdminPanelProps) {
 
       {/* Legg til bruker skjema */}
       {showAddForm && (
-        <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-6">
+        <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-white mb-4">
             Legg til ny bruker
           </h3>
@@ -150,7 +150,7 @@ export function AdminPanel({ initialUsers }: AdminPanelProps) {
       )}
 
       {/* Brukerliste */}
-      <div className="rounded-lg bg-slate-800/50 border border-slate-700 overflow-hidden">
+      <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 overflow-hidden shadow-lg">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-900/50">

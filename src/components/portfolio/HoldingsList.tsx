@@ -58,7 +58,7 @@ export function HoldingsList() {
       {holdings.map((holding) => (
         <div
           key={holding.id}
-          className="rounded-lg bg-slate-700/50 border border-slate-600 p-4"
+          className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-4 shadow-lg"
         >
           <div className="flex items-start justify-between">
             <div className="flex-1">

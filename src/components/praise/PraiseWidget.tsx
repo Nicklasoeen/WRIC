@@ -74,19 +74,19 @@ export function PraiseWidget() {
       {/* Status */}
       <div className="flex-1 space-y-3">
         <div className="grid grid-cols-3 gap-2">
-          <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-2">
+          <div className="text-center rounded-xl bg-slate-800/60 border border-slate-700/80 p-2">
             <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-1">Total XP</p>
             <p className="text-lg font-bold text-yellow-500 dark:text-yellow-400">
               {status.totalXp}
             </p>
           </div>
-          <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-2">
+          <div className="text-center rounded-xl bg-slate-800/60 border border-slate-700/80 p-2">
             <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-1">I dag</p>
             <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {status.praisesToday}/3
             </p>
           </div>
-          <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-2">
+          <div className="text-center rounded-xl bg-slate-800/60 border border-slate-700/80 p-2">
             <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-1">Igjen</p>
             <p className="text-lg font-bold text-emerald-500 dark:text-emerald-400">
               {status.praisesRemaining}

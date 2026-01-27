@@ -69,7 +69,7 @@ export function PraiseButton() {
   return (
     <div className="space-y-4">
       {/* Status */}
-      <div className="rounded-lg bg-slate-700/50 border border-slate-600 p-4">
+      <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-4 shadow-lg">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-xs text-slate-400 mb-1">Total XP</p>

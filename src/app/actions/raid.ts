@@ -1,0 +1,150 @@
+"use server";
+
+import { getSession } from "./auth";
+import { supabaseAdmin } from "@/lib/supabase-server";
+import { checkAndUnlockBadges } from "./badges";
+
+const XP_PER_LEVEL = 100;
+
+/**
+ * Hent brukerens hovedlevel og XP
+ */
+export async function getUserLevel(): Promise<{
+  success: boolean;
+  level?: number;
+  xp?: number;
+  error?: string;
+}> {
+  const session = await getSession();
+
+  if (!session.isAuthenticated || !session.userId) {
+    return { success: false, error: "Ikke autentisert" };
+  }
+
+  try {
+    const { data: user, error } = await supabaseAdmin
+      .from("users")
+      .select("level, xp")
+      .eq("id", session.userId)
+      .single();
+
+    if (error) {
+      // Hvis kolonnene ikke finnes, returner default verdier
+      if (error.code === "PGRST116" || error.message?.includes("column") || error.message?.includes("does not exist")) {
+        console.warn("Level/XP columns may not exist yet. Using defaults.");
+        return {
+          success: true,
+          level: 1,
+          xp: 0,
+        };
+      }
+      console.error("Error fetching user level:", error);
+      return { success: false, error: "Kunne ikke hente brukerlevel" };
+    }
+
+    if (!user) {
+      return { success: false, error: "Bruker ikke funnet" };
+    }
+
+    return {
+      success: true,
+      level: user.level || 1,
+      xp: user.xp || 0,
+    };
+  } catch (error: any) {
+    console.error("Error fetching user level:", error);
+    // Returner default verdier ved feil i stedet for å feile
+    return {
+      success: true,
+      level: 1,
+      xp: 0,
+    };
+  }
+}
+
+/**
+ * Gi XP fra Raid til brukerens hovedlevel
+ */
+export async function addRaidXp(
+  raidXp: number,
+  raidLevel: number
+): Promise<{ success: boolean; xpEarned?: number; newLevel?: number; error?: string }> {
+  const session = await getSession();
+
+  if (!session.isAuthenticated || !session.userId) {
+    return { success: false, error: "Ikke autentisert" };
+  }
+
+  try {
+    // Hent brukerens nåværende XP og level
+    let currentXp = 0;
+    let currentLevel = 1;
+    
+    try {
+      const { data: user, error: userError } = await supabaseAdmin
+        .from("users")
+        .select("xp, level")
+        .eq("id", session.userId)
+        .single();
+
+      if (userError) {
+        // Hvis kolonnene ikke finnes, bruk default verdier
+        if (userError.code === "PGRST116" || userError.message?.includes("column") || userError.message?.includes("does not exist")) {
+          console.warn("XP/Level columns may not exist yet. Using defaults.");
+          currentXp = 0;
+          currentLevel = 1;
+        } else {
+          console.error("Error fetching user:", userError);
+          return { success: false, error: "Kunne ikke hente brukerdata" };
+        }
+      } else if (user) {
+        currentXp = user.xp || 0;
+        currentLevel = user.level || 1;
+      }
+    } catch (err: any) {
+      console.warn("Could not fetch user data:", err);
+      // Fortsett med default verdier
+      currentXp = 0;
+      currentLevel = 1;
+    }
+
+    // Raid level gir bonus XP (5% per Raid level)
+    const raidLevelBonus = 1 + (raidLevel - 1) * 0.05;
+    const totalXpEarned = Math.floor(raidXp * raidLevelBonus);
+
+    const newXp = currentXp + totalXpEarned;
+
+    // Beregn ny level (samme formel som i praise.ts)
+    const newLevel = Math.floor(newXp / XP_PER_LEVEL) + 1;
+
+    // Oppdater brukerens XP og level
+    const { error: updateError } = await supabaseAdmin
+      .from("users")
+      .update({
+        xp: newXp,
+        level: newLevel,
+      })
+      .eq("id", session.userId);
+
+    if (updateError) {
+      console.error("Error updating user XP:", updateError);
+      return { success: false, error: "Kunne ikke oppdatere XP" };
+    }
+
+    // Sjekk om brukeren skal få nye badges
+    if (newLevel > currentLevel) {
+      await checkAndUnlockBadges().catch((err) => {
+        console.error("Error checking badges:", err);
+      });
+    }
+
+    return {
+      success: true,
+      xpEarned: totalXpEarned,
+      newLevel: newLevel,
+    };
+  } catch (error: any) {
+    console.error("Error adding Raid XP:", error);
+    return { success: false, error: error.message || "En uventet feil oppstod" };
+  }
+}

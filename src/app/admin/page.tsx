@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/app/actions/auth";
 import { getAllUsers } from "@/app/actions/admin";
 import { AdminPanel } from "@/components/admin/AdminPanel";
+import { CreateVoteForm } from "@/components/admin/CreateVoteForm";
+
+export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
   const session = await getSession();
@@ -27,7 +30,20 @@ export default async function AdminPage() {
             Administrer brukere og tilganger
           </p>
         </div>
-        <AdminPanel initialUsers={users} />
+        <div className="space-y-6">
+          <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-6 shadow-lg">
+            <AdminPanel initialUsers={users} />
+          </div>
+          
+          {/* Voting admin */}
+          <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-6 shadow-lg">
+            <h2 className="text-xl font-semibold text-white mb-4">Voting Administration</h2>
+            <p className="text-sm text-slate-400 mb-4">
+              Opprett ukentlige votes for brukerne
+            </p>
+            <CreateVoteForm />
+          </div>
+        </div>
       </div>
     </div>
   );

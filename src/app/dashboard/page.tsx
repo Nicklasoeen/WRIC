@@ -5,6 +5,8 @@ import { PortfolioWidget } from "@/components/portfolio/PortfolioWidget";
 import { ChatWidgetCompact } from "@/components/chat/ChatWidgetCompact";
 import { PraiseWidget } from "@/components/praise/PraiseWidget";
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   const session = await getSession();
 

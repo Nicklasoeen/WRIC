@@ -49,6 +49,14 @@ export async function checkPassword(password: string): Promise<{
         });
         // Nullstill forsøk
         cookieStore.delete("login_attempts");
+        
+        // Sikre at brukeren har Member badge (kjøres asynkront)
+        import("./badges").then(({ ensureMemberBadge }) => {
+          ensureMemberBadge().catch((err) => {
+            console.error("Error ensuring Member badge:", err);
+          });
+        });
+        
         return {
           success: true,
           userId: user.id,
@@ -85,38 +93,43 @@ export async function getSession(): Promise<{
   userName?: string;
   isAdmin?: boolean;
 }> {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("dashboard_user_id")?.value;
-  const userName = cookieStore.get("dashboard_user_name")?.value;
-
-  if (!userId) {
-    return { isAuthenticated: false };
-  }
-
-  // Verifiser at brukeren fortsatt eksisterer og er aktiv
   try {
-    const { data: user, error } = await supabaseAdmin
-      .from("users")
-      .select("id, name, is_active, is_admin")
-      .eq("id", userId)
-      .eq("is_active", true)
-      .single();
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("dashboard_user_id")?.value;
+    const userName = cookieStore.get("dashboard_user_name")?.value;
 
-    if (error || !user) {
-      // Brukeren finnes ikke lenger eller er deaktivert
-      cookieStore.delete("dashboard_user_id");
-      cookieStore.delete("dashboard_user_name");
+    if (!userId) {
       return { isAuthenticated: false };
     }
 
-    return {
-      isAuthenticated: true,
-      userId: user.id,
-      userName: user.name || userName,
-      isAdmin: user.is_admin || false,
-    };
+    // Verifiser at brukeren fortsatt eksisterer og er aktiv
+    try {
+      const { data: user, error } = await supabaseAdmin
+        .from("users")
+        .select("id, name, is_active, is_admin")
+        .eq("id", userId)
+        .eq("is_active", true)
+        .single();
+
+      if (error || !user) {
+        // Brukeren finnes ikke lenger eller er deaktivert
+        cookieStore.delete("dashboard_user_id");
+        cookieStore.delete("dashboard_user_name");
+        return { isAuthenticated: false };
+      }
+
+      return {
+        isAuthenticated: true,
+        userId: user.id,
+        userName: user.name || userName,
+        isAdmin: user.is_admin || false,
+      };
+    } catch (error) {
+      console.error("Error verifying session:", error);
+      return { isAuthenticated: false };
+    }
   } catch (error) {
-    console.error("Error verifying session:", error);
+    console.error("Error in getSession:", error);
     return { isAuthenticated: false };
   }
 }

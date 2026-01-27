@@ -2,9 +2,11 @@
 
 import { getSession } from "./auth";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { checkAndUnlockBadges } from "./badges";
 
 const XP_PER_PRAISE = 10;
 const MAX_PRAISES_PER_DAY = 3;
+const XP_PER_LEVEL = 100; // 100 XP per level
 
 /**
  * Gi praise og tildel XP
@@ -75,16 +77,20 @@ export async function givePraise(): Promise<{
     }
 
     const newXp = (user?.xp || 0) + XP_PER_PRAISE;
+    const newLevel = Math.floor(newXp / XP_PER_LEVEL) + 1;
 
     const { error: updateError } = await supabaseAdmin
       .from("users")
-      .update({ xp: newXp })
+      .update({ xp: newXp, level: newLevel })
       .eq("id", session.userId);
 
     if (updateError) {
       console.error("Error updating XP:", updateError);
       return { success: false, error: "Kunne ikke oppdatere XP" };
     }
+
+    // Sjekk og unlock badges
+    await checkAndUnlockBadges();
 
     return {
       success: true,

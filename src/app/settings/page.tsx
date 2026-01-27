@@ -3,6 +3,8 @@ import { getSession } from "@/app/actions/auth";
 import { AddHolding } from "@/components/portfolio/AddHolding";
 import { HoldingsList } from "@/components/portfolio/HoldingsList";
 
+export const dynamic = 'force-dynamic';
+
 export default async function SettingsPage() {
   const session = await getSession();
 
@@ -22,7 +24,7 @@ export default async function SettingsPage() {
 
         <div className="space-y-6">
           {/* Portefølje-seksjon */}
-          <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-6">
+          <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-6 shadow-lg">
             <div className="mb-4">
               <h2 className="text-xl font-semibold text-white mb-2">
                 Portefølje – Track & Follow
@@ -48,7 +50,7 @@ export default async function SettingsPage() {
           </div>
 
           {/* Eksisterende kjøp */}
-          <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-6">
+          <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-6 shadow-lg">
             <div className="mb-4">
               <h2 className="text-xl font-semibold text-white mb-2">
                 Dine kjøp
