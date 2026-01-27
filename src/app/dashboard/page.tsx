@@ -11,6 +11,8 @@ import {
 } from "@/components/dashboard/widgets";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
 import { PortfolioWidget } from "@/components/portfolio/PortfolioWidget";
+import { ChatWidgetCompact } from "@/components/chat/ChatWidgetCompact";
+import { PraiseWidget } from "@/components/praise/PraiseWidget";
 
 function useCurrentDateTime() {
   const now = new Date();
@@ -55,6 +57,27 @@ export default async function DashboardPage() {
             <PortfolioWidget />
           </WidgetCard>
 
+          {/* Høyre kolonne - øverste rad */}
+          <WidgetCard
+            title="Chat"
+            subtitle="Live aktivitet"
+            size="md"
+            className="md:row-span-2"
+          >
+            <ChatWidgetCompact />
+          </WidgetCard>
+
+          {/* Høyre kolonne - midterste rad */}
+          <WidgetCard
+            title="Praise the Founders"
+            subtitle="Gi praise & tjen XP"
+            size="md"
+            className="md:row-span-2"
+          >
+            <PraiseWidget />
+          </WidgetCard>
+
+          {/* Høyre kolonne - nederste rad */}
           <WidgetCard
             title="E-post & kalender"
             subtitle="Oversikt (mock)"
@@ -79,10 +102,12 @@ export default async function DashboardPage() {
             </div>
           </WidgetCard>
 
+          {/* Nye widgets nederst */}
           <WidgetCard
             title="Stemning på markedet"
             subtitle="Aksjer & krypto"
             size="md"
+            className="md:col-span-2"
           >
             <div className="flex h-full flex-col justify-between gap-4">
               <MiniLineChart />
@@ -105,6 +130,7 @@ export default async function DashboardPage() {
             title="Sessions & fokus"
             subtitle="Denne uken"
             size="sm"
+            className="md:col-span-2"
           >
             <MiniBarChart />
           </WidgetCard>
