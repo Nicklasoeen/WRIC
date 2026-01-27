@@ -12,7 +12,7 @@ export function BackgroundImage() {
   }
 
   return (
-    <div className="fixed inset-0 z-0">
+    <div className="fixed inset-0 z-0 overflow-hidden">
       <Image
         src="/the-city.png"
         alt="Byen bak dashbordet"
@@ -20,6 +20,7 @@ export function BackgroundImage() {
         priority
         quality={100}
         className="object-cover"
+        style={{ pointerEvents: "none" }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/75" />
     </div>

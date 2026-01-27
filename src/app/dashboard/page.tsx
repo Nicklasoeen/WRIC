@@ -1,25 +1,9 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { format } from "date-fns";
-import { nb } from "date-fns/locale";
-import { getSession, logout } from "@/app/actions/auth";
-import {
-  MiniBarChart,
-  MiniLineChart,
-  StatPill,
-  WidgetCard,
-} from "@/components/dashboard/widgets";
-import { LogoutButton } from "@/components/dashboard/LogoutButton";
+import { getSession } from "@/app/actions/auth";
+import { WidgetCard } from "@/components/dashboard/widgets";
 import { PortfolioWidget } from "@/components/portfolio/PortfolioWidget";
 import { ChatWidgetCompact } from "@/components/chat/ChatWidgetCompact";
 import { PraiseWidget } from "@/components/praise/PraiseWidget";
-
-function useCurrentDateTime() {
-  const now = new Date();
-  const date = format(now, "EEEE d. MMMM yyyy", { locale: nb });
-  const time = format(now, "HH:mm");
-  return { date, time };
-}
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -28,13 +12,8 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  // Bruk isAdmin fra session
-  const isAdmin = session.isAdmin || false;
-
-  const { date, time } = useCurrentDateTime();
-
   return (
-    <div className="relative min-h-screen font-sans text-slate-50">
+    <div className="relative font-sans text-slate-50">
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
         {/* Dashboard header */}
         <div className="mb-4">
@@ -100,39 +79,6 @@ export default async function DashboardPage() {
                 </span>
               </div>
             </div>
-          </WidgetCard>
-
-          {/* Nye widgets nederst */}
-          <WidgetCard
-            title="Stemning på markedet"
-            subtitle="Aksjer & krypto"
-            size="md"
-            className="md:col-span-2"
-          >
-            <div className="flex h-full flex-col justify-between gap-4">
-              <MiniLineChart />
-              <div className="grid grid-cols-2 gap-3">
-                <StatPill
-                  label="Indeks"
-                  value="+0.8%"
-                  trend={{ value: "i dag", positive: true }}
-                />
-                <StatPill
-                  label="Krypto"
-                  value="+3.1%"
-                  trend={{ value: "24t", positive: true }}
-                />
-              </div>
-            </div>
-          </WidgetCard>
-
-          <WidgetCard
-            title="Sessions & fokus"
-            subtitle="Denne uken"
-            size="sm"
-            className="md:col-span-2"
-          >
-            <MiniBarChart />
           </WidgetCard>
 
         </main>
