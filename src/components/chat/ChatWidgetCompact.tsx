@@ -13,6 +13,8 @@ export function ChatWidgetCompact() {
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScroll = useRef(true);
 
   useEffect(() => {
     loadMessages();
@@ -22,8 +24,15 @@ export function ChatWidgetCompact() {
   }, []);
 
   useEffect(() => {
-    // Scroll til bunnen når nye meldinger kommer
-    scrollToBottom();
+    // Scroll til bunnen kun hvis brukeren ikke har scrollet opp
+    if (shouldAutoScroll.current && messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      // Bruk scrollTop direkte i stedet for scrollIntoView for å unngå side-scroll
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [messages]);
 
   async function loadMessages() {
@@ -32,6 +41,13 @@ export function ChatWidgetCompact() {
       const result = await response.json();
 
       if (result.success && result.data) {
+        // Sjekk om brukeren er nederst før oppdatering
+        if (messagesContainerRef.current) {
+          const container = messagesContainerRef.current;
+          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+          shouldAutoScroll.current = isNearBottom;
+        }
+        
         setMessages(result.data);
       }
     } catch (err) {
@@ -41,9 +57,13 @@ export function ChatWidgetCompact() {
     }
   }
 
-  function scrollToBottom() {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }
+  const handleScroll = () => {
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+      shouldAutoScroll.current = isNearBottom;
+    }
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +73,9 @@ export function ChatWidgetCompact() {
     setNewMessage("");
 
     startTransition(async () => {
+      // Når brukeren sender melding, skal vi alltid auto-scrolle
+      shouldAutoScroll.current = true;
+      
       const result = await sendChatMessage(messageText);
       if (result.success) {
         await loadMessages();
@@ -86,7 +109,11 @@ export function ChatWidgetCompact() {
       </div>
 
       {/* Meldinger (kompakt) */}
-      <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+      <div 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto space-y-2 min-h-0"
+      >
         {messages.length === 0 ? (
           <div className="text-center text-slate-400 text-xs py-4">
             <p>Ingen meldinger ennå.</p>
