@@ -64,6 +64,7 @@ export async function getUserLevel(): Promise<{
 
 /**
  * Gi XP fra Raid til brukerens hovedlevel
+ * SIKKERHET: Validerer XP-verdier for å forhindre cheating
  */
 export async function addRaidXp(
   raidXp: number,
@@ -76,6 +77,38 @@ export async function addRaidXp(
   }
 
   try {
+    // Valider input - maksimalt rimelig XP per gnome (f.eks. 1000 XP)
+    const MAX_XP_PER_GNOME = 1000;
+    if (raidXp < 0 || raidXp > MAX_XP_PER_GNOME) {
+      console.warn(`Suspicious XP value: ${raidXp}. Capping at ${MAX_XP_PER_GNOME}`);
+      raidXp = Math.min(raidXp, MAX_XP_PER_GNOME);
+    }
+
+    // Valider Raid level - maksimalt rimelig level (f.eks. 1000)
+    const MAX_RAID_LEVEL = 1000;
+    if (raidLevel < 1 || raidLevel > MAX_RAID_LEVEL) {
+      console.warn(`Suspicious Raid level: ${raidLevel}. Capping at ${MAX_RAID_LEVEL}`);
+      raidLevel = Math.min(Math.max(raidLevel, 1), MAX_RAID_LEVEL);
+    }
+
+    // Rate limiting: Sjekk siste XP-tillegg (maks 10 per sekund)
+    const { data: recentXp, error: rateLimitError } = await supabaseAdmin
+      .from("users")
+      .select("updated_at")
+      .eq("id", session.userId)
+      .single();
+
+    if (!rateLimitError && recentXp?.updated_at) {
+      const lastUpdate = new Date(recentXp.updated_at);
+      const now = new Date();
+      const timeSinceLastUpdate = now.getTime() - lastUpdate.getTime();
+      
+      // Minimum 100ms mellom oppdateringer (maks 10 per sekund)
+      if (timeSinceLastUpdate < 100) {
+        return { success: false, error: "For raskt! Vent litt." };
+      }
+    }
+
     // Hent brukerens nåværende XP og level
     let currentXp = 0;
     let currentLevel = 1;
@@ -108,8 +141,8 @@ export async function addRaidXp(
       currentLevel = 1;
     }
 
-    // Raid level gir bonus XP (5% per Raid level)
-    const raidLevelBonus = 1 + (raidLevel - 1) * 0.05;
+    // Raid level gir bonus XP (5% per Raid level) - maksimalt 50x bonus
+    const raidLevelBonus = Math.min(1 + (raidLevel - 1) * 0.05, 50);
     const totalXpEarned = Math.floor(raidXp * raidLevelBonus);
 
     const newXp = currentXp + totalXpEarned;

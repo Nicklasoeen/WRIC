@@ -134,13 +134,15 @@ async function createNewBoss(): Promise<{
 
 /**
  * Gjør skade på boss
+ * SIKKERHET: Ignorerer damage-parameter fra client og beregner skade basert på brukerens faktiske level
  */
 export async function damageBoss(
-  damage: number
+  damage: number // Ignorert - beregnes på server-siden
 ): Promise<{
   success: boolean;
   bossDefeated?: boolean;
   xpEarned?: number;
+  actualDamage?: number;
   error?: string;
 }> {
   const session = await getSession();
@@ -150,6 +152,43 @@ export async function damageBoss(
   }
 
   try {
+    // Hent brukerens faktiske level for å beregne skade på server-siden
+    const { data: user, error: userError } = await supabaseAdmin
+      .from("users")
+      .select("level, xp")
+      .eq("id", session.userId)
+      .single();
+
+    if (userError || !user) {
+      return { success: false, error: "Kunne ikke hente brukerdata" };
+    }
+
+    const userLevel = user.level || 1;
+    
+    // Beregn faktisk skade basert på brukerens level (samme formel som i Raid)
+    const BASE_CLICK_DAMAGE = 1;
+    const DAMAGE_PER_LEVEL = 0.5;
+    const actualDamage = BASE_CLICK_DAMAGE + (userLevel - 1) * DAMAGE_PER_LEVEL;
+
+    // Rate limiting: Sjekk siste angrep (maks 2 angrep per sekund)
+    const { data: recentDamage, error: rateLimitError } = await supabaseAdmin
+      .from("dungeon_damage")
+      .select("dealt_at")
+      .eq("user_id", session.userId)
+      .order("dealt_at", { ascending: false })
+      .limit(1);
+
+    if (!rateLimitError && recentDamage && recentDamage.length > 0) {
+      const lastAttack = new Date(recentDamage[0].dealt_at);
+      const now = new Date();
+      const timeSinceLastAttack = now.getTime() - lastAttack.getTime();
+      
+      // Minimum 500ms mellom angrep (maks 2 per sekund)
+      if (timeSinceLastAttack < 500) {
+        return { success: false, error: "For raskt! Vent litt mellom angrep." };
+      }
+    }
+
     // Hent aktiv boss
     const bossResult = await getActiveBoss();
     if (!bossResult.success || !bossResult.boss) {
@@ -157,7 +196,13 @@ export async function damageBoss(
     }
 
     const boss = bossResult.boss;
-    const newHp = Math.max(0, boss.currentHp - damage);
+    
+    // Sjekk at boss ikke allerede er beseiret
+    if (boss.currentHp <= 0) {
+      return { success: false, error: "Bossen er allerede beseiret" };
+    }
+    
+    const newHp = Math.max(0, boss.currentHp - actualDamage);
     const bossDefeated = newHp <= 0;
 
     // Oppdater boss HP
@@ -176,16 +221,16 @@ export async function damageBoss(
       return { success: false, error: "Kunne ikke oppdatere boss" };
     }
 
-    // Beregn XP
-    const xpEarned = damage * boss.xpPerDamage;
+    // Beregn XP basert på faktisk skade
+    const xpEarned = actualDamage * boss.xpPerDamage;
 
-    // Registrer skade
+    // Registrer skade med faktisk skade-verdi
     const { error: damageError } = await supabaseAdmin
       .from("dungeon_damage")
       .insert({
         boss_id: boss.id,
         user_id: session.userId,
-        damage_amount: damage,
+        damage_amount: actualDamage,
         xp_earned: xpEarned,
       });
 
@@ -233,6 +278,7 @@ export async function damageBoss(
       success: true,
       bossDefeated,
       xpEarned: Math.floor(xpEarned),
+      actualDamage: actualDamage,
     };
   } catch (error: any) {
     console.error("Error damaging boss:", error);

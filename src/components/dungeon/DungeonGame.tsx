@@ -150,20 +150,27 @@ export function DungeonGame() {
 
     setIsAttacking(true);
     try {
-      const result = await damageBoss(clickDamage);
+      const result = await damageBoss(clickDamage); // clickDamage sendes men ignoreres på server
       if (result.success) {
-        setTotalDamageDealt((prev) => prev + clickDamage);
+        // Bruk faktisk skade fra server (ikke client-beregnet)
+        const actualDamage = result.actualDamage || clickDamage;
+        setTotalDamageDealt((prev) => prev + actualDamage);
         if (result.xpEarned) {
           setXpEarned((prev) => prev + result.xpEarned!);
         }
         
-        // Oppdater boss umiddelbart
+        // Oppdater boss umiddelbart med faktisk skade
         if (boss) {
-          const newHp = Math.max(0, boss.currentHp - clickDamage);
+          const newHp = Math.max(0, boss.currentHp - actualDamage);
           setBoss({
             ...boss,
             currentHp: newHp,
           });
+          
+          // Oppdater clickDamage hvis server returnerte annen verdi
+          if (result.actualDamage && Math.abs(result.actualDamage - clickDamage) > 0.1) {
+            setClickDamage(result.actualDamage);
+          }
           
           // Hvis boss er beseiret, stopp auto-attack
           if (newHp <= 0) {
