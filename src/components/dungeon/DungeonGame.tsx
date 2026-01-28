@@ -31,6 +31,7 @@ export function DungeonGame() {
   const [userLevel, setUserLevel] = useState(1);
   const [totalDamageDealt, setTotalDamageDealt] = useState(0);
   const [xpEarned, setXpEarned] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [isAttacking, setIsAttacking] = useState(false);
   const [autoAttack, setAutoAttack] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
@@ -202,65 +203,71 @@ export function DungeonGame() {
     try {
       // Send upgrades med request (server validerer og beregner)
       const result = await damageBoss(clickDamage, upgrades);
-      if (result.success) {
-        // Bruk faktisk skade fra server (ikke client-beregnet)
-        const actualDamage = result.actualDamage || clickDamage;
-        setTotalDamageDealt((prev) => prev + actualDamage);
-        if (result.xpEarned) {
-          const xpWithBonus = result.xpEarned * (1 + upgrades.xpBonus);
-          setXpEarned((prev) => prev + xpWithBonus);
 
-          // Varsle resten av appen om at XP/level er oppdatert
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("level-updated"));
-          }
+      if (!result.success) {
+        // Vis kort feilmelding ved f.eks. rate limit eller allerede død boss
+        if (result.error) {
+          setError(result.error);
+          setTimeout(() => setError(null), 800);
         }
-        
-        // Tjen gull basert på skade (mer gull med upgrades)
-        // Økt gull per skade for raskere progresjon
-        const goldEarned = Math.floor(actualDamage * 1 * (1 + upgrades.goldBonus));
-        setGold((prev) => prev + goldEarned);
-        
-        // Oppdater boss umiddelbart med faktisk skade
-        if (boss) {
-          const newHp = Math.max(0, boss.currentHp - actualDamage);
-          setBoss({
-            ...boss,
-            currentHp: newHp,
-          });
-          
-          // Oppdater clickDamage hvis server returnerte annen verdi
-          if (result.actualDamage && Math.abs(result.actualDamage - clickDamage) > 0.1) {
-            setClickDamage(result.actualDamage);
-          }
-          
-          // Hvis boss er beseiret, stopp auto-attack
-          if (newHp <= 0) {
-            setAutoAttack(false);
-            setTimeElapsed(0);
-          }
-        }
+        return;
+      }
 
-        // Oppdater leaderboard
-        loadLeaderboard();
-        
-        // Hvis boss er beseiret, last inn ny
-        if (result.bossDefeated) {
+      // Bruk faktisk skade fra server (ikke client-beregnet)
+      const actualDamage = result.actualDamage || clickDamage;
+      setTotalDamageDealt((prev) => prev + actualDamage);
+
+      if (result.xpEarned) {
+        const xpWithBonus = result.xpEarned * (1 + upgrades.xpBonus);
+        setXpEarned((prev) => prev + xpWithBonus);
+
+        // Varsle resten av appen om at XP/level er oppdatert
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("level-updated"));
+        }
+      }
+      
+      // Tjen gull basert på skade (mer gull med upgrades)
+      // Økt gull per skade for raskere progresjon
+      const BASE_GOLD_PER_DAMAGE = 1.5; // litt mer gull per skade
+      const goldEarned = Math.floor(actualDamage * BASE_GOLD_PER_DAMAGE * (1 + upgrades.goldBonus));
+      setGold((prev) => prev + goldEarned);
+      
+      // Oppdater boss umiddelbart med faktisk skade
+      setBoss((prevBoss) => {
+        if (!prevBoss) return prevBoss;
+        const newHp = Math.max(0, prevBoss.currentHp - actualDamage);
+        const updated = { ...prevBoss, currentHp: newHp };
+
+        // Hvis boss er beseiret, stopp auto-attack og nullstill tid
+        if (newHp <= 0) {
+          setAutoAttack(false);
           setTimeElapsed(0);
-          setTimeout(() => {
-            loadBoss();
-            setTotalDamageDealt(0);
-            setXpEarned(0);
-          }, 5000);
         }
+        return updated;
+      });
 
-        // Oppdater user level hvis XP er tjent
-        if (result.xpEarned) {
-          loadUserLevel();
-        }
+      // Oppdater leaderboard
+      loadLeaderboard();
+      
+      // Hvis boss er beseiret, last inn ny
+      if (result.bossDefeated) {
+        setTimeElapsed(0);
+        setTimeout(() => {
+          loadBoss();
+          setTotalDamageDealt(0);
+          setXpEarned(0);
+        }, 5000);
+      }
+
+      // Oppdater user level hvis XP er tjent
+      if (result.xpEarned) {
+        loadUserLevel();
       }
     } catch (error) {
       console.error("Error attacking boss:", error);
+      setError("Noe gikk galt med angrepet. Prøv igjen.");
+      setTimeout(() => setError(null), 1200);
     } finally {
       setIsAttacking(false);
     }
@@ -410,6 +417,13 @@ export function DungeonGame() {
           </div>
         </div>
       </div>
+
+      {/* Feilmelding (f.eks. rate limit) */}
+      {error && (
+        <div className="rounded-lg bg-red-500/10 border border-red-500/40 px-4 py-2 text-sm text-red-300 text-center">
+          {error}
+        </div>
+      )}
 
       {/* Leaderboard */}
       <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-6">

@@ -195,7 +195,7 @@ export async function damageBoss(
     
     const actualDamage = baseDamage * damageMultiplier;
 
-    // Rate limiting: Sjekk siste angrep (maks 2 angrep per sekund)
+    // Rate limiting: Sjekk siste angrep (maks 3-4 angrep per sekund)
     const { data: recentDamage, error: rateLimitError } = await supabaseAdmin
       .from("dungeon_damage")
       .select("dealt_at")
@@ -208,8 +208,8 @@ export async function damageBoss(
       const now = new Date();
       const timeSinceLastAttack = now.getTime() - lastAttack.getTime();
       
-      // Minimum 500ms mellom angrep (maks 2 per sekund)
-      if (timeSinceLastAttack < 500) {
+      // Minimum 250ms mellom angrep (maks ca. 4 per sekund)
+      if (timeSinceLastAttack < 250) {
         return { success: false, error: "For raskt! Vent litt mellom angrep." };
       }
     }
