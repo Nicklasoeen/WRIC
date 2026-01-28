@@ -300,6 +300,7 @@ export async function castVote(
       return { success: true, xpEarned: XP_PER_VOTE };
     }
 
+    const currentLevel = user.level || 1;
     const currentXp = user.xp || 0;
     const newXp = currentXp + XP_PER_VOTE;
     const newLevel = Math.floor(newXp / XP_PER_LEVEL) + 1;
@@ -319,10 +320,12 @@ export async function castVote(
       return { success: true, xpEarned: XP_PER_VOTE };
     }
 
-    // Sjekk om brukeren skal få nye badges
-    await checkAndUnlockBadges().catch((err) => {
-      console.error("Error checking badges:", err);
-    });
+    // Sjekk om brukeren skal få nye badges (send med gammel level for å sjekke alle mellomliggende)
+    if (newLevel > currentLevel) {
+      await checkAndUnlockBadges(currentLevel).catch((err) => {
+        console.error("Error checking badges:", err);
+      });
+    }
 
     return { success: true, xpEarned: XP_PER_VOTE };
   } catch (error: any) {

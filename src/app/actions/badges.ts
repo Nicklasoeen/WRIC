@@ -118,8 +118,9 @@ export async function getUserBadges(): Promise<{
 /**
  * Sjekk og unlock badges basert på brukerens level
  * Dette kalles automatisk når brukeren får XP
+ * @param oldLevel - Gammel level (valgfritt, for å sjekke alle badges mellom gammel og ny level)
  */
-export async function checkAndUnlockBadges(): Promise<{
+export async function checkAndUnlockBadges(oldLevel?: number): Promise<{
   success: boolean;
   unlocked?: Badge[];
   error?: string;
@@ -139,16 +140,20 @@ export async function checkAndUnlockBadges(): Promise<{
       .single();
 
     if (userError || !user) {
+      console.error("Error fetching user:", userError);
       return { success: false, error: "Kunne ikke hente brukerdata" };
     }
 
     const userLevel = user.level || 1;
+    const minLevel = oldLevel ? Math.min(oldLevel, userLevel) : 1;
+    const maxLevel = userLevel;
 
-    // Hent badges som brukeren kan unlocke
+    // Hent badges som brukeren kan unlocke (mellom minLevel og maxLevel)
     const { data: availableBadges, error: badgesError } = await supabaseAdmin
       .from("badges")
       .select("*")
-      .lte("level_required", userLevel)
+      .gte("level_required", minLevel)
+      .lte("level_required", maxLevel)
       .order("level_required", { ascending: true });
 
     if (badgesError) {
@@ -202,6 +207,7 @@ export async function checkAndUnlockBadges(): Promise<{
       color: badge.color || "yellow",
     }));
 
+    console.log(`Unlocked ${unlocked.length} badges for level ${userLevel}`);
     return { success: true, unlocked };
   } catch (error: any) {
     console.error("Error checking badges:", error);

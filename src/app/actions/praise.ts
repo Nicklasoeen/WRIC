@@ -67,7 +67,7 @@ export async function givePraise(): Promise<{
     // Oppdater brukerens XP
     const { data: user, error: userError } = await supabaseAdmin
       .from("users")
-      .select("xp")
+      .select("xp, level")
       .eq("id", session.userId)
       .single();
 
@@ -76,6 +76,7 @@ export async function givePraise(): Promise<{
       return { success: false, error: "Kunne ikke hente brukerdata" };
     }
 
+    const currentLevel = user?.level || 1;
     const newXp = (user?.xp || 0) + XP_PER_PRAISE;
     const newLevel = Math.floor(newXp / XP_PER_LEVEL) + 1;
 
@@ -89,8 +90,12 @@ export async function givePraise(): Promise<{
       return { success: false, error: "Kunne ikke oppdatere XP" };
     }
 
-    // Sjekk og unlock badges
-    await checkAndUnlockBadges();
+    // Sjekk og unlock badges (send med gammel level for å sjekke alle mellomliggende)
+    if (newLevel > currentLevel) {
+      await checkAndUnlockBadges(currentLevel).catch((err) => {
+        console.error("Error checking badges:", err);
+      });
+    }
 
     return {
       success: true,

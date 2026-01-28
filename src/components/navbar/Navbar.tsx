@@ -47,6 +47,17 @@ export function Navbar() {
     }
   }, [xp]);
 
+  // Lytte på level-updated event fra Raid
+  useEffect(() => {
+    const handleLevelUpdate = () => {
+      loadXP().catch(() => {});
+      loadUserBadge().catch(() => {});
+    };
+    
+    window.addEventListener('level-updated', handleLevelUpdate);
+    return () => window.removeEventListener('level-updated', handleLevelUpdate);
+  }, []);
+
   // Lukk dropdown når man klikker utenfor
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

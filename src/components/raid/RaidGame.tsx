@@ -126,6 +126,9 @@ export function RaidGame() {
         .then((result) => {
           if (result.success && result.newLevel) {
             setUserMainLevel(result.newLevel);
+            // Oppdater badge i Navbar når level endres
+            // Dette vil trigge en oppdatering i Navbar via XP-endring
+            window.dispatchEvent(new CustomEvent('level-updated'));
           }
         })
         .catch((err) => {

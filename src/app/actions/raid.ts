@@ -131,9 +131,9 @@ export async function addRaidXp(
       return { success: false, error: "Kunne ikke oppdatere XP" };
     }
 
-    // Sjekk om brukeren skal få nye badges
+    // Sjekk om brukeren skal få nye badges (send med gammel level for å sjekke alle mellomliggende)
     if (newLevel > currentLevel) {
-      await checkAndUnlockBadges().catch((err) => {
+      await checkAndUnlockBadges(currentLevel).catch((err) => {
         console.error("Error checking badges:", err);
       });
     }
