@@ -21,6 +21,9 @@ export default async function AdminPage() {
   // Hent alle brukere (kun hvis admin)
   const users = await getAllUsers();
 
+  // Debug logging
+  console.log("AdminPage: Users fetched", { count: users.length, users });
+
   return (
     <div className="min-h-screen p-8">
       <div className="mx-auto max-w-4xl">

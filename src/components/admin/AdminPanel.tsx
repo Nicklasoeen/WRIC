@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { createUser, deleteUser, getAllUsers } from "@/app/actions/admin";
 import { setUserTimeout } from "@/app/actions/timeout";
 
@@ -18,6 +18,11 @@ interface AdminPanelProps {
 
 export function AdminPanel({ initialUsers }: AdminPanelProps) {
   const [users, setUsers] = useState<User[]>(initialUsers);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("AdminPanel: Initial users", { count: initialUsers.length, users: initialUsers });
+  }, [initialUsers]);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

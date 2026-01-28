@@ -96,7 +96,8 @@ export async function getAllUsers(): Promise<
 > {
   const session = await getSession();
 
-  if (!session.isAuthenticated) {
+  if (!session.isAuthenticated || !session.userId) {
+    console.warn("getAllUsers: Not authenticated");
     return [];
   }
 
@@ -107,19 +108,51 @@ export async function getAllUsers(): Promise<
     .eq("id", session.userId)
     .single();
 
-  if (userError || !user?.is_admin) {
+  if (userError) {
+    console.error("getAllUsers: Error checking admin status:", userError);
     return [];
   }
 
-  const { data: users, error } = await supabaseAdmin
+  if (!user?.is_admin) {
+    console.warn("getAllUsers: User is not admin", { userId: session.userId });
+    return [];
+  }
+
+  // Hent alle brukere (inkludert deaktiverte)
+  // Prøv først med timeout_until, fall tilbake uten hvis kolonnen ikke finnes
+  let { data: users, error } = await supabaseAdmin
     .from("users")
     .select("id, name, is_active, is_admin, timeout_until")
     .order("created_at", { ascending: false });
 
+  // Hvis timeout_until kolonnen ikke finnes, prøv uten den
+  if (error && (error.message?.includes("timeout_until") || error.code === "PGRST116")) {
+    console.warn("getAllUsers: timeout_until column missing, fetching without it");
+    const fallback = await supabaseAdmin
+      .from("users")
+      .select("id, name, is_active, is_admin")
+      .order("created_at", { ascending: false });
+    
+    // Legg til timeout_until: null for alle brukere hvis kolonnen mangler
+    if (fallback.data) {
+      users = fallback.data.map((u: any) => ({ ...u, timeout_until: null })) as any;
+    } else {
+      users = null;
+    }
+    error = fallback.error;
+  }
+
   if (error) {
-    console.error("Error fetching users:", error);
+    console.error("getAllUsers: Error fetching users:", error);
     return [];
   }
 
-  return users || [];
+  console.log("getAllUsers: Fetched users", { count: users?.length || 0 });
+  return (users || []) as Array<{
+    id: string;
+    name: string;
+    is_active: boolean;
+    is_admin: boolean;
+    timeout_until: string | null;
+  }>;
 }
