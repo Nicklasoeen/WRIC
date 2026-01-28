@@ -13,13 +13,13 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  // Sjekk om brukeren er admin
-  const users = await getAllUsers();
-  
-  // Hvis ingen brukere returneres, er brukeren ikke admin
-  if (users.length === 0 && session.userId) {
+  // Sjekk om brukeren er admin direkte fra session
+  if (!session.isAdmin) {
     redirect("/dashboard");
   }
+
+  // Hent alle brukere (kun hvis admin)
+  const users = await getAllUsers();
 
   return (
     <div className="min-h-screen p-8">
