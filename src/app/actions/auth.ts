@@ -92,6 +92,8 @@ export async function getSession(): Promise<{
   userId?: string;
   userName?: string;
   isAdmin?: boolean;
+  isTimedOut?: boolean;
+  timeoutUntil?: string | null;
 }> {
   try {
     const cookieStore = await cookies();
@@ -106,7 +108,7 @@ export async function getSession(): Promise<{
     try {
       const { data: user, error } = await supabaseAdmin
         .from("users")
-        .select("id, name, is_active, is_admin")
+        .select("id, name, is_active, is_admin, timeout_until")
         .eq("id", userId)
         .eq("is_active", true)
         .single();
@@ -118,11 +120,18 @@ export async function getSession(): Promise<{
         return { isAuthenticated: false };
       }
 
+      const now = new Date();
+      const timeoutUntil = user.timeout_until as string | null;
+      const isTimedOut =
+        timeoutUntil != null && new Date(timeoutUntil).getTime() > now.getTime();
+
       return {
         isAuthenticated: true,
         userId: user.id,
         userName: user.name || userName,
         isAdmin: user.is_admin || false,
+        isTimedOut,
+        timeoutUntil,
       };
     } catch (error) {
       console.error("Error verifying session:", error);

@@ -39,6 +39,11 @@ export function PraiseWidget() {
         setSuccess(`+${result.xpEarned} XP!`);
         setTimeout(() => setSuccess(null), 2000);
         await loadStatus();
+
+        // Varsle resten av appen om at XP/level er oppdatert
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("level-updated"));
+        }
       } else {
         setError(result.error || "Kunne ikke gi praise");
         setTimeout(() => setError(null), 3000);

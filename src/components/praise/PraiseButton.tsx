@@ -42,6 +42,11 @@ export function PraiseButton() {
           `Praise gitt! Du fikk ${result.xpEarned} XP. Total XP: ${result.totalXp}`
         );
         await loadStatus(); // Oppdater status
+
+        // Varsle resten av appen om at XP/level er oppdatert
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("level-updated"));
+        }
       } else {
         setError(result.error || "Kunne ikke gi praise");
       }

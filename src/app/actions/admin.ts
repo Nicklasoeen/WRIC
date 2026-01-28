@@ -86,7 +86,13 @@ export async function deleteUser(
 
 // Hent alle brukere (kun admin)
 export async function getAllUsers(): Promise<
-  Array<{ id: string; name: string; is_active: boolean; is_admin: boolean }>
+  Array<{
+    id: string;
+    name: string;
+    is_active: boolean;
+    is_admin: boolean;
+    timeout_until: string | null;
+  }>
 > {
   const session = await getSession();
 
@@ -107,7 +113,7 @@ export async function getAllUsers(): Promise<
 
   const { data: users, error } = await supabaseAdmin
     .from("users")
-    .select("id, name, is_active, is_admin")
+    .select("id, name, is_active, is_admin, timeout_until")
     .order("created_at", { ascending: false });
 
   if (error) {

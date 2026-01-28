@@ -94,6 +94,12 @@ export function VotingWidget() {
 
       if (result.success) {
         setSuccess(`+${result.xpEarned || 10} XP!`);
+
+        // Varsle resten av appen om at XP/level er oppdatert
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("level-updated"));
+        }
+
         // Reload vote data for å synkronisere
         setTimeout(async () => {
           await loadVote();

@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { createUser, deleteUser, getAllUsers } from "@/app/actions/admin";
+import { setUserTimeout } from "@/app/actions/timeout";
 
 interface User {
   id: string;
   name: string;
   is_active: boolean;
   is_admin: boolean;
+  timeout_until: string | null;
 }
 
 interface AdminPanelProps {
@@ -64,6 +66,25 @@ export function AdminPanel({ initialUsers }: AdminPanelProps) {
         setUsers(updatedUsers);
       } else {
         setError(result.error || "Kunne ikke fjerne bruker");
+      }
+    });
+  };
+
+  const handleTimeoutUser = async (user: User, minutes: number | null) => {
+    setError(null);
+    setSuccess(null);
+
+    const label =
+      minutes && minutes > 0 ? `${minutes} minutters timeout` : "fjernet timeout";
+
+    startTransition(async () => {
+      const result = await setUserTimeout(user.id, minutes);
+      if (result.success) {
+        setSuccess(`Bruker "${user.name}" fikk ${label}.`);
+        const updatedUsers = await getAllUsers();
+        setUsers(updatedUsers);
+      } else {
+        setError(result.error || "Kunne ikke oppdatere timeout");
       }
     });
   };
@@ -164,6 +185,9 @@ export function AdminPanel({ initialUsers }: AdminPanelProps) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                   Rolle
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  Timeout
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
                   Handlinger
                 </th>
@@ -197,16 +221,60 @@ export function AdminPanel({ initialUsers }: AdminPanelProps) {
                       {user.is_admin ? "Admin" : "Bruker"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {!user.is_admin && user.is_active && (
-                      <button
-                        onClick={() => handleDeleteUser(user.id, user.name)}
-                        disabled={isPending}
-                        className="text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Deaktiver
-                      </button>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {user.timeout_until ? (
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 text-red-400">
+                        Timeout til{" "}
+                        {new Date(user.timeout_until).toLocaleTimeString("nb-NO", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    ) : (
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400">
+                        Ingen
+                      </span>
                     )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end gap-3">
+                      {!user.is_admin && user.is_active && (
+                        <button
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          disabled={isPending}
+                          className="text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Deaktiver
+                        </button>
+                      )}
+                      {!user.is_admin && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleTimeoutUser(user, 5)}
+                            disabled={isPending}
+                            className="px-2 py-1 text-xs rounded bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50"
+                          >
+                            5 min
+                          </button>
+                          <button
+                            onClick={() => handleTimeoutUser(user, 30)}
+                            disabled={isPending}
+                            className="px-2 py-1 text-xs rounded bg-orange-700 hover:bg-orange-800 text-white disabled:opacity-50"
+                          >
+                            30 min
+                          </button>
+                          {user.timeout_until && (
+                            <button
+                              onClick={() => handleTimeoutUser(user, null)}
+                              disabled={isPending}
+                              className="px-2 py-1 text-xs rounded bg-slate-600 hover:bg-slate-700 text-white disabled:opacity-50"
+                            >
+                              Fjern
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

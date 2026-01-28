@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
         isAdmin: session.isAdmin || false,
         userId: session.userId,
         userName: session.userName,
+        isTimedOut: session.isTimedOut || false,
+        timeoutUntil: session.timeoutUntil || null,
       },
     });
   } catch (error) {
