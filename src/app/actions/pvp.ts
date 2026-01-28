@@ -117,6 +117,92 @@ export async function getPvpStats(userId?: string): Promise<{
 }
 
 /**
+ * Hent nye PvP notifikasjoner (kamper hvor brukeren er defender)
+ */
+export async function getPvpNotifications(lastCheckedId?: string): Promise<{
+  success: boolean;
+  notifications?: Array<{
+    id: string;
+    attackerName: string;
+    attackerLevel: number;
+    defenderWon: boolean;
+    damageDealt: number;
+    createdAt: string;
+  }>;
+  error?: string;
+}> {
+  const session = await getSession();
+
+  if (!session.isAuthenticated || !session.userId) {
+    return { success: false, error: "Ikke autentisert" };
+  }
+
+  try {
+    // Bygg query
+    let query = supabaseAdmin
+      .from("pvp_battles")
+      .select("id, attacker_id, attacker_won, damage_dealt, created_at, attacker_level")
+      .eq("defender_id", session.userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    // Hvis lastCheckedId er gitt, bare hent kamper etter den
+    if (lastCheckedId) {
+      const { data: lastBattle } = await supabaseAdmin
+        .from("pvp_battles")
+        .select("created_at")
+        .eq("id", lastCheckedId)
+        .single();
+
+      if (lastBattle) {
+        query = query.gt("created_at", lastBattle.created_at);
+      }
+    }
+
+    const { data: battles, error } = await query;
+
+    if (error) {
+      console.error("Error fetching PvP notifications:", error);
+      return { success: false, error: "Kunne ikke hente notifikasjoner" };
+    }
+
+    if (!battles || battles.length === 0) {
+      return { success: true, notifications: [] };
+    }
+
+    // Hent attacker navn
+    const attackerIds = [...new Set(battles.map((b: any) => b.attacker_id))];
+    const { data: users, error: usersError } = await supabaseAdmin
+      .from("users")
+      .select("id, name")
+      .in("id", attackerIds);
+
+    if (usersError) {
+      console.error("Error fetching attacker names:", usersError);
+    }
+
+    const userMap = new Map(users?.map((u) => [u.id, u.name]) || []);
+
+    const notifications = battles.map((battle: any) => ({
+      id: battle.id,
+      attackerName: userMap.get(battle.attacker_id) || "Ukjent",
+      attackerLevel: battle.attacker_level || 1,
+      defenderWon: !battle.attacker_won, // Defender vinner hvis attacker ikke vant
+      damageDealt: parseFloat(battle.damage_dealt || "0"),
+      createdAt: battle.created_at,
+    }));
+
+    return {
+      success: true,
+      notifications,
+    };
+  } catch (error: any) {
+    console.error("Error in getPvpNotifications:", error);
+    return { success: false, error: error.message || "En uventet feil oppstod" };
+  }
+}
+
+/**
  * Angrip en annen bruker
  * SIKKERHET: All damage-beregning skjer server-side
  */
