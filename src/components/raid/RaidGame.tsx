@@ -107,6 +107,21 @@ export function RaidGame() {
       });
   }, []);
 
+  // Sørg for at clickDamage alltid er synkronisert med level
+  useEffect(() => {
+    setGameState((prev) => {
+      const expectedDamage = BASE_CLICK_DAMAGE + (prev.level - 1) * DAMAGE_PER_LEVEL;
+      if (Math.abs(prev.clickDamage - expectedDamage) > 0.01) {
+        // clickDamage er ikke synkronisert med level, fiks det
+        return {
+          ...prev,
+          clickDamage: expectedDamage,
+        };
+      }
+      return prev;
+    });
+  }, [gameState.level]);
+
   // Lagre progress til localStorage
   useEffect(() => {
     if (isInitialized) {
