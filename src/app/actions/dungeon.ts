@@ -243,7 +243,12 @@ export async function damageBoss(
 
     if (updateError) {
       console.error("Error updating boss HP:", updateError);
-      return { success: false, error: "Kunne ikke oppdatere boss" };
+      const baseMessage = "Kunne ikke oppdatere boss";
+      const extra =
+        (updateError as any).message && typeof (updateError as any).message === "string"
+          ? `: ${(updateError as any).message}`
+          : "";
+      return { success: false, error: `${baseMessage}${extra}` };
     }
 
     // Beregn XP basert på faktisk skade med bonus
