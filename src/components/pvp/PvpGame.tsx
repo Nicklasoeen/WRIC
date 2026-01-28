@@ -40,10 +40,10 @@ interface LeaderboardEntry {
   totalDamageDealt: number;
 }
 
-const BASE_CLICK_DAMAGE = 1;
-const DAMAGE_PER_LEVEL = 0.5;
-const BASE_HP = 100;
-const HP_PER_LEVEL = 10;
+const BASE_CLICK_DAMAGE = 10;
+const DAMAGE_PER_LEVEL = 5;
+const BASE_HP = 50;
+const HP_PER_LEVEL = 5;
 const ATTACK_COOLDOWN_MS = 30000;
 
 export function PvpGame() {
