@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { FaHammer, FaTrophy, FaFire, FaUsers } from "react-icons/fa";
+import { FaHammer, FaTrophy, FaFire, FaUsers, FaCoins, FaGem, FaShieldAlt } from "react-icons/fa";
 import { getActiveBoss, damageBoss, getBossLeaderboard } from "@/app/actions/dungeon";
 
 interface Boss {
@@ -35,6 +35,12 @@ export function DungeonGame() {
   const [autoAttack, setAutoAttack] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [participants, setParticipants] = useState(0);
+  const [gold, setGold] = useState(0);
+  const [upgrades, setUpgrades] = useState({
+    damageMultiplier: 1, // Øker skade
+    xpBonus: 0, // Øker XP
+    goldBonus: 0, // Øker gull (for fremtidig bruk)
+  });
   const updateInterval = useRef<NodeJS.Timeout | null>(null);
   const autoAttackInterval = useRef<NodeJS.Timeout | null>(null);
   const timeInterval = useRef<NodeJS.Timeout | null>(null);
@@ -44,6 +50,7 @@ export function DungeonGame() {
     loadBoss();
     loadLeaderboard();
     loadUserLevel();
+    loadUpgrades();
 
     // Oppdater boss status hvert 2. sekund
     updateInterval.current = setInterval(() => {
@@ -51,14 +58,9 @@ export function DungeonGame() {
       loadLeaderboard();
     }, 2000);
 
-    // Oppdater tid hvert sekund
+    // Start generell timer – selve økningen styres av boss-status
     timeInterval.current = setInterval(() => {
-      setTimeElapsed((prev) => {
-        if (boss && boss.currentHp > 0) {
-          return prev + 1;
-        }
-        return prev;
-      });
+      setTimeElapsed((prev) => prev + 1);
     }, 1000);
 
     return () => {
@@ -73,6 +75,14 @@ export function DungeonGame() {
       }
     };
   }, []);
+
+  // Nullstill tid når boss byttes eller dør
+  useEffect(() => {
+    if (!boss) return;
+    if (boss.currentHp <= 0) {
+      setTimeElapsed(0);
+    }
+  }, [boss?.id, boss?.currentHp]);
 
   // Auto-attack funksjon
   useEffect(() => {
@@ -128,36 +138,82 @@ export function DungeonGame() {
 
   async function loadUserLevel() {
     try {
-      const response = await fetch("/api/user-status");
-      const result = await response.json();
-      if (result.success && result.data) {
-        // Hent XP for å beregne level
-        const xpResponse = await fetch("/api/praise-status");
-        const xpResult = await xpResponse.json();
-        if (xpResult.totalXp !== undefined) {
-          const level = Math.floor(xpResult.totalXp / 100) + 1;
-          setUserLevel(level);
-          setClickDamage(1 + (level - 1) * 0.5);
-        }
+      // Bruk server action direkte i stedet for API-endpoint
+      const { getPraiseStatus } = await import("@/app/actions/praise");
+      const status = await getPraiseStatus();
+      
+      if (status && typeof status.totalXp === 'number') {
+        const level = Math.floor(status.totalXp / 100) + 1;
+        setUserLevel(level);
+        const baseDamage = 1 + (level - 1) * 0.5;
+        setClickDamage(baseDamage * upgrades.damageMultiplier);
       }
     } catch (error) {
       console.error("Error loading user level:", error);
+      // Fallback: bruk default verdier
+      setUserLevel(1);
+      setClickDamage(1 * upgrades.damageMultiplier);
     }
   }
+
+  function loadUpgrades() {
+    try {
+      const saved = localStorage.getItem("dungeonUpgrades");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setUpgrades(parsed);
+      }
+      
+      const savedGold = localStorage.getItem("dungeonGold");
+      if (savedGold) {
+        setGold(parseInt(savedGold, 10));
+      }
+    } catch (error) {
+      console.error("Error loading upgrades:", error);
+    }
+  }
+
+  function saveUpgrades() {
+    try {
+      localStorage.setItem("dungeonUpgrades", JSON.stringify(upgrades));
+      localStorage.setItem("dungeonGold", gold.toString());
+    } catch (error) {
+      console.error("Error saving upgrades:", error);
+    }
+  }
+
+  // Oppdater clickDamage når upgrades endres
+  useEffect(() => {
+    const baseDamage = 1 + (userLevel - 1) * 0.5;
+    setClickDamage(baseDamage * upgrades.damageMultiplier);
+  }, [upgrades.damageMultiplier, userLevel]);
+
+  // Lagre upgrades når de endres
+  useEffect(() => {
+    if (upgrades || gold !== undefined) {
+      saveUpgrades();
+    }
+  }, [upgrades, gold]);
 
   const handleAttack = async () => {
     if (!boss || boss.currentHp <= 0 || isAttacking) return;
 
     setIsAttacking(true);
     try {
-      const result = await damageBoss(clickDamage); // clickDamage sendes men ignoreres på server
+      // Send upgrades med request (server validerer og beregner)
+      const result = await damageBoss(clickDamage, upgrades);
       if (result.success) {
         // Bruk faktisk skade fra server (ikke client-beregnet)
         const actualDamage = result.actualDamage || clickDamage;
         setTotalDamageDealt((prev) => prev + actualDamage);
         if (result.xpEarned) {
-          setXpEarned((prev) => prev + result.xpEarned!);
+          const xpWithBonus = result.xpEarned * (1 + upgrades.xpBonus);
+          setXpEarned((prev) => prev + xpWithBonus);
         }
+        
+        // Tjen gull basert på skade (mer gull med upgrades)
+        const goldEarned = Math.floor(actualDamage * 0.1 * (1 + upgrades.goldBonus));
+        setGold((prev) => prev + goldEarned);
         
         // Oppdater boss umiddelbart med faktisk skade
         if (boss) {
@@ -312,7 +368,7 @@ export function DungeonGame() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-4">
           <div className="text-sm text-slate-400 mb-1">Din totale skade</div>
           <div className="text-2xl font-bold text-white">
@@ -323,6 +379,14 @@ export function DungeonGame() {
           <div className="text-sm text-slate-400 mb-1">XP tjent</div>
           <div className="text-2xl font-bold text-yellow-400">
             {Math.floor(xpEarned).toLocaleString()}
+          </div>
+        </div>
+        <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-4">
+          <div className="text-sm text-slate-400 mb-1 flex items-center gap-1">
+            <FaCoins /> Gull
+          </div>
+          <div className="text-2xl font-bold text-yellow-500">
+            {gold.toLocaleString()}
           </div>
         </div>
         <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-4">
@@ -395,12 +459,113 @@ export function DungeonGame() {
         )}
       </div>
 
+      {/* Upgrades */}
+      <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <FaShieldAlt className="text-blue-400" />
+            Upgrades
+          </h3>
+          <div className="flex items-center gap-2 text-yellow-400">
+            <FaCoins />
+            <span className="font-bold">{gold.toLocaleString()}</span>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Damage Upgrade */}
+          <div className="rounded-lg bg-slate-700/40 border border-slate-600/60 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FaHammer className="text-red-400" />
+              <h4 className="font-semibold text-white">Skade Multiplikator</h4>
+            </div>
+            <p className="text-xs text-slate-400 mb-3">
+              Øker skade med 10% per nivå (maks 10x)
+            </p>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-slate-300">
+                Nivå: {Math.floor((upgrades.damageMultiplier - 1) * 10)}
+              </span>
+              <span className="text-sm font-bold text-white">
+                {upgrades.damageMultiplier.toFixed(1)}x skade
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                if (upgrades.damageMultiplier < 10) {
+                  const cost = Math.floor(100 * Math.pow(1.5, Math.floor((upgrades.damageMultiplier - 1) * 10)));
+                  if (gold >= cost) {
+                    setGold((prev) => prev - cost);
+                    setUpgrades((prev) => ({
+                      ...prev,
+                      damageMultiplier: Math.min(prev.damageMultiplier + 0.1, 10),
+                    }));
+                  }
+                }
+              }}
+              disabled={upgrades.damageMultiplier >= 10 || gold < Math.floor(100 * Math.pow(1.5, Math.floor((upgrades.damageMultiplier - 1) * 10)))}
+              className={`w-full py-2 px-3 rounded-lg font-medium text-sm transition-all ${
+                upgrades.damageMultiplier >= 10 || gold < Math.floor(100 * Math.pow(1.5, Math.floor((upgrades.damageMultiplier - 1) * 10)))
+                  ? "bg-slate-600 text-slate-400 cursor-not-allowed"
+                  : "bg-red-600 hover:bg-red-700 text-white"
+              }`}
+            >
+              {upgrades.damageMultiplier >= 10
+                ? "Maks nivå"
+                : `Kjøp (${Math.floor(100 * Math.pow(1.5, Math.floor((upgrades.damageMultiplier - 1) * 10))).toLocaleString()} gull)`}
+            </button>
+          </div>
+
+          {/* XP Bonus Upgrade */}
+          <div className="rounded-lg bg-slate-700/40 border border-slate-600/60 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FaGem className="text-yellow-400" />
+              <h4 className="font-semibold text-white">XP Bonus</h4>
+            </div>
+            <p className="text-xs text-slate-400 mb-3">
+              Øker XP-belønning med 25% per nivå (maks 400% bonus)
+            </p>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-slate-300">
+                Nivå: {Math.floor(upgrades.xpBonus * 4)}
+              </span>
+              <span className="text-sm font-bold text-yellow-400">
+                +{(upgrades.xpBonus * 100).toFixed(0)}% XP
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                if (upgrades.xpBonus < 4) {
+                  const cost = Math.floor(150 * Math.pow(2, Math.floor(upgrades.xpBonus * 4)));
+                  if (gold >= cost) {
+                    setGold((prev) => prev - cost);
+                    setUpgrades((prev) => ({
+                      ...prev,
+                      xpBonus: Math.min(prev.xpBonus + 0.25, 4),
+                    }));
+                  }
+                }
+              }}
+              disabled={upgrades.xpBonus >= 4 || gold < Math.floor(150 * Math.pow(2, Math.floor(upgrades.xpBonus * 4)))}
+              className={`w-full py-2 px-3 rounded-lg font-medium text-sm transition-all ${
+                upgrades.xpBonus >= 4 || gold < Math.floor(150 * Math.pow(2, Math.floor(upgrades.xpBonus * 4)))
+                  ? "bg-slate-600 text-slate-400 cursor-not-allowed"
+                  : "bg-yellow-600 hover:bg-yellow-700 text-white"
+              }`}
+            >
+              {upgrades.xpBonus >= 4
+                ? "Maks nivå"
+                : `Kjøp (${Math.floor(150 * Math.pow(2, Math.floor(upgrades.xpBonus * 4))).toLocaleString()} gull)`}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Info */}
       <div className="rounded-xl bg-blue-900/20 border border-blue-700/40 p-4">
         <div className="text-sm text-blue-300">
           <strong>💡 Tips:</strong> Samarbeid med andre for å beseire bossen raskere!
-          Du får {boss.xpPerDamage} XP per skade. Hvis bossen beseires, får alle
-          deltakere en belønning!
+          Du får {boss.xpPerDamage} XP per skade. Kjøp upgrades for å gjøre mer skade og tjene mer XP!
         </div>
       </div>
     </div>

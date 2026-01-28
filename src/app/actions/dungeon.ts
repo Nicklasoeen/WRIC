@@ -132,12 +132,19 @@ async function createNewBoss(): Promise<{
   }
 }
 
+interface DungeonUpgrades {
+  damageMultiplier?: number;
+  xpBonus?: number;
+  goldBonus?: number;
+}
+
 /**
  * Gjør skade på boss
- * SIKKERHET: Ignorerer damage-parameter fra client og beregner skade basert på brukerens faktiske level
+ * SIKKERHET: Ignorerer damage-parameter fra client og beregner skade basert på brukerens faktiske level og validerte upgrades
  */
 export async function damageBoss(
-  damage: number // Ignorert - beregnes på server-siden
+  damage: number, // Ignorert - beregnes på server-siden
+  upgrades?: DungeonUpgrades // Valideres på server-siden
 ): Promise<{
   success: boolean;
   bossDefeated?: boolean;
@@ -168,7 +175,25 @@ export async function damageBoss(
     // Beregn faktisk skade basert på brukerens level (samme formel som i Raid)
     const BASE_CLICK_DAMAGE = 1;
     const DAMAGE_PER_LEVEL = 0.5;
-    const actualDamage = BASE_CLICK_DAMAGE + (userLevel - 1) * DAMAGE_PER_LEVEL;
+    let baseDamage = BASE_CLICK_DAMAGE + (userLevel - 1) * DAMAGE_PER_LEVEL;
+    
+    // Valider og bruk upgrades (maks 10x damage multiplier, maks 5x XP bonus)
+    let damageMultiplier = 1;
+    let xpBonus = 0;
+    
+    if (upgrades) {
+      // Valider damage multiplier (maks 10x)
+      if (upgrades.damageMultiplier && upgrades.damageMultiplier > 0 && upgrades.damageMultiplier <= 10) {
+        damageMultiplier = upgrades.damageMultiplier;
+      }
+      
+      // Valider XP bonus (maks 5x = 400% bonus)
+      if (upgrades.xpBonus && upgrades.xpBonus >= 0 && upgrades.xpBonus <= 4) {
+        xpBonus = upgrades.xpBonus;
+      }
+    }
+    
+    const actualDamage = baseDamage * damageMultiplier;
 
     // Rate limiting: Sjekk siste angrep (maks 2 angrep per sekund)
     const { data: recentDamage, error: rateLimitError } = await supabaseAdmin
@@ -221,8 +246,8 @@ export async function damageBoss(
       return { success: false, error: "Kunne ikke oppdatere boss" };
     }
 
-    // Beregn XP basert på faktisk skade
-    const xpEarned = actualDamage * boss.xpPerDamage;
+    // Beregn XP basert på faktisk skade med bonus
+    const xpEarned = actualDamage * boss.xpPerDamage * (1 + xpBonus);
 
     // Registrer skade med faktisk skade-verdi
     const { error: damageError } = await supabaseAdmin
