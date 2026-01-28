@@ -21,9 +21,15 @@ export function TimeoutOverlay() {
         const res = await fetch("/api/user-status");
         if (!res.ok) return;
         const data = await res.json();
-        const { isTimedOut, timeoutUntil } = data.data || {};
+        const { isTimedOut, timeoutUntil, isAdmin } = data.data || {};
 
         if (!isMounted) return;
+
+        // Admin skal aldri låses ute av UI
+        if (isAdmin) {
+          setState({ isTimedOut: false, remainingSeconds: 0 });
+          return;
+        }
 
         if (isTimedOut && timeoutUntil) {
           const until = new Date(timeoutUntil).getTime();

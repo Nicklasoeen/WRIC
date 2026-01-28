@@ -106,12 +106,26 @@ export async function getSession(): Promise<{
 
     // Verifiser at brukeren fortsatt eksisterer og er aktiv
     try {
-      const { data: user, error } = await supabaseAdmin
+      // Forsøk å hente med timeout-kolonne først
+      let { data: user, error } = await supabaseAdmin
         .from("users")
         .select("id, name, is_active, is_admin, timeout_until")
         .eq("id", userId)
         .eq("is_active", true)
         .single();
+
+      // Hvis databasen ikke har timeout_until-kolonnen ennå, fall tilbake til enkel select
+      if (error && (error.code === "PGRST204" || error.message?.includes("timeout_until"))) {
+        console.warn("users.timeout_until column missing, falling back without timeout support");
+        const fallback = await supabaseAdmin
+          .from("users")
+          .select("id, name, is_active, is_admin")
+          .eq("id", userId)
+          .eq("is_active", true)
+          .single();
+        user = fallback.data as any;
+        error = fallback.error as any;
+      }
 
       if (error || !user) {
         // Brukeren finnes ikke lenger eller er deaktivert
@@ -121,7 +135,7 @@ export async function getSession(): Promise<{
       }
 
       const now = new Date();
-      const timeoutUntil = user.timeout_until as string | null;
+      const timeoutUntil = (user as any).timeout_until as string | null | undefined;
       const isTimedOut =
         timeoutUntil != null && new Date(timeoutUntil).getTime() > now.getTime();
 
@@ -129,9 +143,9 @@ export async function getSession(): Promise<{
         isAuthenticated: true,
         userId: user.id,
         userName: user.name || userName,
-        isAdmin: user.is_admin || false,
+        isAdmin: (user as any).is_admin || false,
         isTimedOut,
-        timeoutUntil,
+        timeoutUntil: timeoutUntil ?? null,
       };
     } catch (error) {
       console.error("Error verifying session:", error);
