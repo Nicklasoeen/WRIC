@@ -218,6 +218,16 @@ export function Navbar() {
               Raid
             </Link>
             <Link
+              href="/pvp"
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                pathname === "/pvp"
+                  ? "bg-purple-600 text-white"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800"
+              }`}
+            >
+              PvP
+            </Link>
+            <Link
               href="/badges"
               className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                 pathname === "/badges"
