@@ -249,12 +249,13 @@ export async function getTopPraisersOfMonth(): Promise<
       });
     }
 
-    // Hent brukernavn
+    // Hent brukernavn (kun aktive brukere)
     const userIds = Array.from(userStats.keys());
     const { data: users, error: usersError } = await supabaseAdmin
       .from("users")
       .select("id, name, xp")
-      .in("id", userIds);
+      .in("id", userIds)
+      .eq("is_active", true);
 
     if (usersError || !users) {
       console.error("Error fetching users:", usersError);

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { getPraiseStatus } from "@/app/actions/praise";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
 import { BadgeIcon } from "@/components/badges/BadgeIcon";
-import { FaCog, FaUserShield, FaChevronDown } from "react-icons/fa";
+import { FaCog, FaUserShield, FaChevronDown, FaCoins } from "react-icons/fa";
 
 interface UserBadge {
   icon: string;
@@ -275,9 +275,10 @@ export function Navbar() {
                       {xp !== null ? `${xp} XP` : "0 XP"}
                     </span>
                   </div>
-                  <span className="text-xs text-amber-400" title="Gull">
-                    {gold !== null ? `${gold} gull` : "0 gull"}
-                  </span>
+                  <div className="flex items-center gap-1 text-amber-400" title="Gull">
+                    <FaCoins className="text-xs" />
+                    <span className="text-xs">{gold !== null ? gold : 0}</span>
+                  </div>
                 </div>
                 <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden min-w-[100px]">
                   <div
@@ -304,9 +305,10 @@ export function Navbar() {
                 <span className="text-xs text-slate-400">
                   {xp !== null ? `${xp} XP` : "0 XP"}
                 </span>
-                <span className="text-xs text-amber-400">
-                  {gold !== null ? `${gold} gull` : "0 gull"}
-                </span>
+                <div className="flex items-center gap-1 text-amber-400">
+                  <FaCoins className="text-xs" />
+                  <span className="text-xs">{gold !== null ? gold : 0}</span>
+                </div>
               </>
             )}
           </div>

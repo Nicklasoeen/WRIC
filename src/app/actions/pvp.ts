@@ -479,12 +479,13 @@ export async function getPvpLeaderboard(limit: number = 10): Promise<
       return [];
     }
 
-    // Hent user info for hver stat
+    // Hent user info for hver stat (kun aktive brukere)
     const userIds = stats.map((s) => s.user_id);
     const { data: users, error: usersError } = await supabaseAdmin
       .from("users")
       .select("id, name, level")
-      .in("id", userIds);
+      .in("id", userIds)
+      .eq("is_active", true);
 
     if (usersError) {
       console.error("Error fetching users for leaderboard:", usersError);
