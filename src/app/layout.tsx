@@ -4,7 +4,6 @@ import "./globals.css";
 import { Navbar } from "@/components/navbar/Navbar";
 import { BackgroundImage } from "@/components/layout/BackgroundImage";
 import { TimeoutOverlay } from "@/components/security/TimeoutOverlay";
-import { PvpNotifications } from "@/components/pvp/PvpNotifications";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +33,6 @@ export default function RootLayout({
         <TimeoutOverlay />
         <BackgroundImage />
         <Navbar />
-        <PvpNotifications />
         <div className="relative z-10">
           {children}
         </div>
