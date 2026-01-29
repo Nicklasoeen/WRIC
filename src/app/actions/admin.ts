@@ -50,6 +50,7 @@ export async function createUser(
 }
 
 // Fjern bruker (kun admin)
+// Sletter all relatert data (praises, votes, PvP stats, battles, badges, chat, etc.) før deaktivering
 export async function deleteUser(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -70,18 +71,51 @@ export async function deleteUser(
     return { success: false, error: "Kun admin kan fjerne brukere" };
   }
 
-  // Deaktiver bruker (ikke slett, for å beholde historikk)
-  const { error } = await supabaseAdmin
-    .from("users")
-    .update({ is_active: false })
-    .eq("id", userId);
+  try {
+    // Slett all relatert data først
+    // 1. Praises
+    await supabaseAdmin.from("praises").delete().eq("user_id", userId);
 
-  if (error) {
-    console.error("Error deleting user:", error);
-    return { success: false, error: "Kunne ikke fjerne bruker" };
+    // 2. User votes
+    await supabaseAdmin.from("user_votes").delete().eq("user_id", userId);
+
+    // 3. User badges
+    await supabaseAdmin.from("user_badges").delete().eq("user_id", userId);
+
+    // 4. PvP stats
+    await supabaseAdmin.from("user_pvp_stats").delete().eq("user_id", userId);
+
+    // 5. PvP battles (hvor brukeren er attacker eller defender)
+    // Slett battles hvor brukeren er attacker
+    await supabaseAdmin.from("pvp_battles").delete().eq("attacker_id", userId);
+    // Slett battles hvor brukeren er defender
+    await supabaseAdmin.from("pvp_battles").delete().eq("defender_id", userId);
+
+    // 6. Chat messages
+    await supabaseAdmin.from("chat_messages").delete().eq("user_id", userId);
+
+    // 7. Chat reactions
+    await supabaseAdmin.from("chat_reactions").delete().eq("user_id", userId);
+
+    // 8. Portfolio holdings
+    await supabaseAdmin.from("holdings").delete().eq("user_id", userId);
+
+    // 9. Nullstill XP, level og gull (valgfritt - kan også beholde for historikk)
+    await supabaseAdmin
+      .from("users")
+      .update({
+        xp: 0,
+        level: 1,
+        gold: 0,
+        is_active: false,
+      })
+      .eq("id", userId);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error deleting user data:", error);
+    return { success: false, error: error.message || "Kunne ikke fjerne brukerdata" };
   }
-
-  return { success: true };
 }
 
 // Hent alle brukere (kun admin)
