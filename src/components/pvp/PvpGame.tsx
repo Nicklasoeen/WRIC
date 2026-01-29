@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import { attackUser, getAllUsersForPvp, getPvpStats, getPvpLeaderboard } from "@/app/actions/pvp";
 import { getUserLevel } from "@/app/actions/raid";
+import { getPraiseStatus } from "@/app/actions/praise";
 
 interface User {
   id: string;
@@ -50,6 +51,7 @@ export function PvpGame() {
   const [users, setUsers] = useState<User[]>([]);
   const [myStats, setMyStats] = useState<PvpStats | null>(null);
   const [myLevel, setMyLevel] = useState(1);
+  const [myGold, setMyGold] = useState(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [attackingUserId, setAttackingUserId] = useState<string | null>(null);
   const [attackResult, setAttackResult] = useState<{
@@ -82,11 +84,12 @@ export function PvpGame() {
 
   const loadData = async () => {
     try {
-      const [usersData, statsData, levelData, leaderboardData] = await Promise.all([
+      const [usersData, statsData, levelData, leaderboardData, praiseStatus] = await Promise.all([
         getAllUsersForPvp(),
         getPvpStats(),
         getUserLevel(),
         getPvpLeaderboard(10),
+        getPraiseStatus(),
       ]);
 
       setUsers(usersData);
@@ -106,6 +109,9 @@ export function PvpGame() {
       }
       if (levelData.success && levelData.level) {
         setMyLevel(levelData.level);
+      }
+      if (praiseStatus && typeof (praiseStatus as any).gold === "number") {
+        setMyGold((praiseStatus as any).gold);
       }
       setLeaderboard(leaderboardData);
       setIsLoading(false);
@@ -182,7 +188,15 @@ export function PvpGame() {
   return (
     <div className="space-y-6">
       {/* My Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-lg bg-slate-900/50 border border-slate-700/50 p-4">
+          <div className="flex items-center gap-2 text-slate-400 mb-2">
+            <FaCoins className="text-amber-400" />
+            <span className="text-sm">Din Gull</span>
+          </div>
+          <div className="text-2xl font-bold text-white">{myGold}</div>
+          <div className="text-xs text-slate-500 mt-1">Fra PvP-seiere</div>
+        </div>
         <div className="rounded-lg bg-slate-900/50 border border-slate-700/50 p-4">
           <div className="flex items-center gap-2 text-slate-400 mb-2">
             <FaHammer className="text-red-400" />

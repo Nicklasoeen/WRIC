@@ -228,28 +228,31 @@ export async function attackUser(
   }
 
   try {
-    // Hent attacker stats
-    const { data: attacker, error: attackerError } = await supabaseAdmin
-      .from("users")
-      .select("id, level, xp")
-      .eq("id", session.userId)
-      .single();
-
-    if (attackerError || !attacker) {
+    // Hent attacker stats (inkl. gold hvis kolonnen finnes)
+    const attackerRes = await supabaseAdmin.from("users").select("id, level, xp, gold").eq("id", session.userId).single();
+    let attacker = attackerRes.data as any;
+    if (attackerRes.error && (attackerRes.error.message?.includes("gold") || attackerRes.error.message?.includes("column"))) {
+      const fallback = await supabaseAdmin.from("users").select("id, level, xp").eq("id", session.userId).single();
+      attacker = fallback.data;
+      if (fallback.error || !attacker) return { success: false, error: "Kunne ikke hente din brukerdata" };
+      attacker.gold = 0;
+    } else if (attackerRes.error || !attacker) {
       return { success: false, error: "Kunne ikke hente din brukerdata" };
     }
+    if (typeof attacker.gold !== "number") attacker.gold = 0;
 
-    // Hent defender stats
-    const { data: defender, error: defenderError } = await supabaseAdmin
-      .from("users")
-      .select("id, name, level, xp")
-      .eq("id", defenderId)
-      .eq("is_active", true)
-      .single();
-
-    if (defenderError || !defender) {
+    // Hent defender stats (inkl. gold hvis kolonnen finnes)
+    const defenderRes = await supabaseAdmin.from("users").select("id, name, level, xp, gold").eq("id", defenderId).eq("is_active", true).single();
+    let defender = defenderRes.data as any;
+    if (defenderRes.error && (defenderRes.error.message?.includes("gold") || defenderRes.error.message?.includes("column"))) {
+      const fallback = await supabaseAdmin.from("users").select("id, name, level, xp").eq("id", defenderId).eq("is_active", true).single();
+      defender = fallback.data;
+      if (fallback.error || !defender) return { success: false, error: "Forsvarer ikke funnet eller inaktiv" };
+      defender.gold = 0;
+    } else if (defenderRes.error || !defender) {
       return { success: false, error: "Forsvarer ikke funnet eller inaktiv" };
     }
+    if (typeof defender.gold !== "number") defender.gold = 0;
 
     // Sjekk cooldown
     const { data: stats, error: statsError } = await supabaseAdmin
@@ -307,12 +310,18 @@ export async function attackUser(
     const newXp = currentXp + xpEarned;
     const newLevel = Math.floor(newXp / XP_PER_LEVEL) + 1;
 
+    // Oppdater attacker: XP, level og gull (ved seier, hvis gold-kolonne finnes)
+    const attackerGold = attacker.gold ?? 0;
+    const newAttackerGold = attackerWon ? attackerGold + goldEarned : attackerGold;
+    const updatePayload: { xp: number; level: number; gold?: number } = {
+      xp: newXp,
+      level: newLevel,
+    };
+    if (typeof attacker.gold === "number") updatePayload.gold = newAttackerGold;
+
     const { error: updateAttackerError } = await supabaseAdmin
       .from("users")
-      .update({
-        xp: newXp,
-        level: newLevel,
-      })
+      .update(updatePayload)
       .eq("id", session.userId);
 
     if (updateAttackerError) {
@@ -320,10 +329,14 @@ export async function attackUser(
       return { success: false, error: "Kunne ikke oppdatere XP" };
     }
 
-    // Oppdater defender gold (hvis de tapte)
-    if (attackerWon && goldLost > 0) {
-      // Hent defender gold (fra Raid localStorage, men vi kan ikke endre det server-side)
-      // Vi kan bare logge det i battle log
+    // Oppdater defender gull (trekk ved tap) hvis gold-kolonne finnes
+    if (attackerWon && goldLost > 0 && typeof defender.gold === "number") {
+      const defenderGold = defender.gold ?? 0;
+      const newDefenderGold = Math.max(0, defenderGold - goldLost);
+      await supabaseAdmin
+        .from("users")
+        .update({ gold: newDefenderGold })
+        .eq("id", defenderId);
     }
 
     // Sjekk badges for attacker

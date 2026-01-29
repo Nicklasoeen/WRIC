@@ -114,39 +114,43 @@ export async function givePraise(): Promise<{
  */
 export async function getPraiseStatus(): Promise<{
   totalXp: number;
+  gold: number;
   praisesToday: number;
   praisesRemaining: number;
 }> {
   const session = await getSession();
 
   if (!session.isAuthenticated || !session.userId) {
-    return { totalXp: 0, praisesToday: 0, praisesRemaining: 0 };
+    return { totalXp: 0, gold: 0, praisesToday: 0, praisesRemaining: 0 };
   }
 
   try {
-    // Hent brukerens XP - håndter hvis xp-kolonnen ikke eksisterer
+    // Hent brukerens XP og gull - håndter hvis kolonner ikke eksisterer
     let totalXp = 0;
+    let gold = 0;
     try {
       const { data: user, error: userError } = await supabaseAdmin
         .from("users")
-        .select("xp")
+        .select("xp, gold")
         .eq("id", session.userId)
         .single();
 
       if (userError) {
-        // Hvis xp-kolonnen ikke finnes, returner 0
         if (userError.code === "PGRST116" || userError.message?.includes("column") || userError.message?.includes("does not exist")) {
-          console.warn("XP column does not exist yet. Run praise-schema.sql");
-          totalXp = 0;
+          const fallback = await supabaseAdmin.from("users").select("xp").eq("id", session.userId).single();
+          totalXp = (fallback.data as any)?.xp ?? 0;
+          gold = 0;
         } else {
           console.error("Error fetching user XP:", userError);
         }
       } else {
-        totalXp = user?.xp || 0;
+        totalXp = (user as any)?.xp ?? 0;
+        gold = (user as any)?.gold ?? 0;
       }
     } catch (err: any) {
-      console.warn("Could not fetch XP:", err);
+      console.warn("Could not fetch user:", err);
       totalXp = 0;
+      gold = 0;
     }
 
     // Hent praises i dag - håndter hvis tabellen ikke eksisterer
@@ -184,12 +188,13 @@ export async function getPraiseStatus(): Promise<{
 
     return {
       totalXp,
+      gold,
       praisesToday,
       praisesRemaining,
     };
   } catch (error: any) {
     console.error("Error getting praise status:", error);
-    return { totalXp: 0, praisesToday: 0, praisesRemaining: 0 };
+    return { totalXp: 0, gold: 0, praisesToday: 0, praisesRemaining: 0 };
   }
 }
 

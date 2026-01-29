@@ -17,6 +17,7 @@ interface UserBadge {
 export function Navbar() {
   const pathname = usePathname();
   const [xp, setXp] = useState<number | null>(null);
+  const [gold, setGold] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userBadge, setUserBadge] = useState<UserBadge | null>(null);
@@ -83,9 +84,15 @@ export function Navbar() {
       } else {
         setXp(0);
       }
+      if (status && typeof (status as any).gold === 'number') {
+        setGold((status as any).gold);
+      } else {
+        setGold(0);
+      }
     } catch (error) {
       console.error("Error loading XP:", error);
-      setXp(0); // Fallback til 0 XP
+      setXp(0);
+      setGold(0);
     }
   }
 
@@ -259,12 +266,17 @@ export function Navbar() {
               <div className="text-xs text-slate-400">Laster...</div>
             ) : (
               <>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-yellow-400">
-                    Lv {currentLevel}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    {xp !== null ? `${xp} XP` : "0 XP"}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-yellow-400">
+                      Lv {currentLevel}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {xp !== null ? `${xp} XP` : "0 XP"}
+                    </span>
+                  </div>
+                  <span className="text-xs text-amber-400" title="Gull">
+                    {gold !== null ? `${gold} gull` : "0 gull"}
                   </span>
                 </div>
                 <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden min-w-[100px]">
@@ -291,6 +303,9 @@ export function Navbar() {
                 </span>
                 <span className="text-xs text-slate-400">
                   {xp !== null ? `${xp} XP` : "0 XP"}
+                </span>
+                <span className="text-xs text-amber-400">
+                  {gold !== null ? `${gold} gull` : "0 gull"}
                 </span>
               </>
             )}
