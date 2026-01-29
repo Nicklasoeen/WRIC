@@ -468,7 +468,7 @@ export async function getPvpLeaderboard(limit: number = 10): Promise<
       .from("user_pvp_stats")
       .select("user_id, wins, losses, total_damage_dealt")
       .order("wins", { ascending: false })
-      .limit(limit);
+      .limit(limit * 2); // Hent flere for å ha nok etter filtrering
 
     if (error) {
       console.error("Error fetching leaderboard:", error);
@@ -492,26 +492,32 @@ export async function getPvpLeaderboard(limit: number = 10): Promise<
       return [];
     }
 
-    // Map stats med user info
+    // Map stats med user info og filtrer bort deaktiverte
     const userMap = new Map(users?.map((u) => [u.id, u]) || []);
 
-    return stats.map((s) => {
-      const wins = s.wins || 0;
-      const losses = s.losses || 0;
-      const total = wins + losses;
-      const winRate = total > 0 ? (wins / total) * 100 : 0;
-      const user = userMap.get(s.user_id);
+    return stats
+      .map((s) => {
+        const user = userMap.get(s.user_id);
+        // Hopp over hvis brukeren ikke finnes (deaktivert)
+        if (!user) return null;
 
-      return {
-        userId: s.user_id,
-        userName: user?.name || "Ukjent",
-        level: user?.level || 1,
-        wins,
-        losses,
-        winRate: Math.round(winRate * 10) / 10,
-        totalDamageDealt: parseFloat(s.total_damage_dealt || "0"),
-      };
-    });
+        const wins = s.wins || 0;
+        const losses = s.losses || 0;
+        const total = wins + losses;
+        const winRate = total > 0 ? (wins / total) * 100 : 0;
+
+        return {
+          userId: s.user_id,
+          userName: user.name,
+          level: user.level || 1,
+          wins,
+          losses,
+          winRate: Math.round(winRate * 10) / 10,
+          totalDamageDealt: parseFloat(s.total_damage_dealt || "0"),
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .slice(0, limit); // Ta kun de første N etter filtrering
   } catch (error) {
     console.error("Error in getPvpLeaderboard:", error);
     return [];

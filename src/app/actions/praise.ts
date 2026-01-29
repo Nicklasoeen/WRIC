@@ -262,17 +262,20 @@ export async function getTopPraisersOfMonth(): Promise<
       return [];
     }
 
-    // Kombiner data
+    // Kombiner data og filtrer bort deaktiverte brukere
     const topPraisers = Array.from(userStats.entries())
       .map(([userId, stats]) => {
         const user = users.find((u) => u.id === userId);
+        // Hopp over hvis brukeren ikke finnes (deaktivert)
+        if (!user) return null;
         return {
           userId,
-          userName: user?.name || "Ukjent",
+          userName: user.name,
           totalPraises: stats.totalPraises,
-          totalXp: user?.xp || stats.totalXp,
+          totalXp: user.xp || stats.totalXp,
         };
       })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
       .sort((a, b) => b.totalPraises - a.totalPraises) // Sorter etter antall praises
       .slice(0, 10); // Top 10
 
